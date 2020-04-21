@@ -2,7 +2,7 @@
 ;; with negative edge cost allowed.
 
 
-(load "matrix.scm")
+(load "graph-utils.scm")
 
 
 (define test-graph '(
@@ -36,18 +36,6 @@
   (6 5   4)))
 
 
-(define (edge-from e) (car e))
-(define (edge-to e)   (cadr e))
-(define (edge-cost e) (caddr e))
-
-
-(define (max-node g)
-  (fold
-    (lambda (e res) (max res (edge-from e) (edge-to e)))
-    0
-    g))
-
-
 ;; n - number of nodes
 (define (determine-in-degree g n)
   (let ((x (make-vector (+ 1 n) '())))
@@ -60,66 +48,94 @@
     x))
 
 
-(define (graph-max-cost g)
-  (fold
-    (lambda (e res) (+ res (edge-cost e)))
-    0
-    g))
-
-
 ;; Bellman-Ford single source shortest path.
 ;; the 'g' is a list of edges, each edge is a '(from to cost)' triple.
 ;; the 's' is a source node (integer).
 (define (bellman-ford-sssp g s)
   (let* (
          ;; number of nodes
-         (n   (max-node g))
+         (n   (graph-max-node g))
          (n-1 (- n 1))
 
          ;; number of edges
          (m (length g))
 
+         ;; infinity
          (inf (+ 1 (graph-max-cost g)))
-         (res->cost (lambda (res) (if (>= res inf) #f res)))
+         (res->cost (lambda (res) (if (or (not res) (>= res inf)) #f res)))
 
          ;; in-degree list of each node
          (in-degree_ (determine-in-degree g n))
          (in-degree  (lambda (v) (vector-ref in-degree_ v)))
 
-         ;; 2-D array that keeps track of computations
-         (A_         (make-matrix (+ 1 n) (+ 1 n) #f))
+         ;; two data lines for previous and current computations
+         (A_         (make-vector 2 #f))
+         (curr        0)
+         (prev       #f)
+         (shift-A    (lambda () (if (zero? curr)
+                                  (begin
+                                    (set! curr 1)
+                                    (set! prev 0))
+                                  (begin
+                                    (set! curr 0)
+                                    (set! prev 1)))))
          (A          (lambda (i v)
-                       ;;;(if (not (matrix-ref A_ i v)) (format #t "#f: i ~a v ~a\n" i v))
-                       (matrix-ref A_ i v)))
-         (A!         (lambda (i v a) (matrix-set! A_ i v a)))
+                       ;;;(format #t "FIXME: A ~a ~a\n" i v)
+                       (vector-ref  (vector-ref A_ i) v)))
+         (A!         (lambda (i v a) (vector-set! (vector-ref A_ i) v a)))
 
-         ;; test for negative cycles
-         (negative-cycle
+         ;; test for negative-cost cycles
+         ;; (compare results of last and one extra iterations)
+         (negative-cost-cycle?
            (lambda ()
              (let loop ((v 1))
                (if (> v n) #f
-                 (if (not (= (A n-1 v) (A n v))) #t
-                   (loop (+ 1 v))))))))
+                 (if (not (= (A prev v) (A curr v))) #t
+                   (loop (+ 1 v)))))))
 
-    (dotimes (v 1 n) (A! 0 v (if (= v s) 0 inf)))
+         (improved? #t))
+
+    ;; initialize data lines
+    ;; [0..n] elements each
+    (dotimes (x 2)
+      (vector-set! A_ x (make-vector (+ 1 n) #f)))
+
+    ;; set first data line
+    (dotimes (v 0 n)
+      (A! curr v (if (= v s) 0 inf)))
 
     (dotimes (i 1 n)
-      (let ((i-1 (- i 1)))
-        (dotimes (v 1 n)
-          ;;;(format #t "i ~a v ~a\n" i v)
-          (let ((aw (apply min inf (map (lambda (e)
-                                          ;;;(format #t "~a\n" e)
-                                          (let ((w   (edge-from e))
-                                                (Cwv (edge-cost e)))
-                                            (+ (A i-1 w) Cwv)))
-                                        (in-degree v)))))
-            (A! i v (min (A i-1 v) aw))))))
+      (if improved?
+        (begin
+          (set! improved? #f)
+          (shift-A)
+          (if (zero? (remainder i 10))
+            (format #t "i=~a\n" i))
+          (dotimes (v 1 n)
+            ;;;(format #t "i ~a v ~a\n" i v)
+            (let ((aw (apply min inf (map (lambda (e)
+                                            ;;;(format #t "FIXME: ~a\n" e)
+                                            (let ((w   (edge-from e))
+                                                  (Cwv (edge-cost e)))
+                                              (+ (A prev w) Cwv)))
+                                          (in-degree v)))))
+              (if (< aw (A prev v))
+                (begin
+                  (set! improved? #t)
+                  (A! curr v aw))
+                (begin
+                  (A! curr v (A prev v))))))
+          (if (not improved?)
+            (begin
+              (format #t "early stop (~a)\n" i))))))
 
-    (if (negative-cycle)
-      #f
+    (if (negative-cost-cycle?)
+      (begin
+        (format #t "negative-cost cycle\n")
+        #f)
       (let ((res (make-vector (+ 1 n) #f)))
-        (dotimes (v 1 n)
-          (vector-set! res v (list v (res->cost (A n-1 v)))))
+        (dotimes (v 0 n)
+          (vector-set! res v (list v (res->cost (A prev v)))))
         (vector->list res)))))
 
 ;; end of file

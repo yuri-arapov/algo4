@@ -38,4 +38,80 @@
 ;; above.
 
 
+(load "bellman-ford.scm")
+(load "dijkstra-shortest-path.scm")
+
+
+(define (extend-graph g count extra-node)
+  (fold
+    (lambda (node res)
+      (cons
+        (list extra-node node 0) ;; extra edge from extra node to every other nodes
+        res))
+    g
+    (reverse (iota count 1))))
+
+
+(define (johnson-all-pairs-shortest-path g)
+
+  (let* (
+         ;; number of nodes
+         (n (graph-max-node g))
+
+         ;; extra node for reweighting
+         (extra-node (+ 1 n))
+
+         ;; prepare reweighting
+         ;; (Bellman-Ford Single Source Shortest Path)
+         (w (bellman-ford-sssp (extend-graph g n extra-node) extra-node)))
+
+    (if (not w)
+      (begin
+        ;; negative-cost cycle
+        #f)
+      (begin
+        (let* ((p_ (list->vector (map cadr w)))
+               (p  (lambda (node) (vector-ref p_ node)))
+
+               (reweight-cost (lambda (cost from to)
+                                (- (+ cost (p from)) (p to))))
+
+               (restore-cost (lambda (cost from to)
+                               (let ((p-from (p from))
+                                     (p-to   (p to)))
+                                 (if (and cost p-from p-to)
+                                   (+ (- cost p-from) p-to)
+                                   cost))))
+
+               ;; reweighted graph
+               (gr (map (lambda (e)
+                          (let ((from (edge-from e))
+                                (to   (edge-to e)))
+                            ;;;(format #t "FIXME: e=~a\n" e)
+                            (make-edge from to (reweight-cost (edge-cost e) from to))))
+                        g))
+
+               (res '(0 0 0))
+               (update-res! (lambda (cost from to)
+                              (if (and cost (< cost (car res)))
+                                (begin
+                                  (format #t "FIXME: res: ~d ~d->~d\n" cost from to)
+                                  (set! res (list cost from to)))))))
+
+          (dotimes (s 1 n)
+            (let (
+                  ;; shortest path distantces from source node to all other nodes
+                  (sp (dijkstra-shortest-path gr s)))
+
+              (dotimes (i 1 n)
+                (if (not (= i s))
+                  (vector-update! sp i (lambda (prev) (restore-cost prev s i)))))
+
+              (format #t "FIXME: sp=~a\n" sp)
+
+              (dotimes (i 1 n)
+                (update-res! (vector-ref sp i) s i))))
+
+          res)))))
+
 ;; end of file
