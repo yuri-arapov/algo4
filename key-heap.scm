@@ -1,4 +1,11 @@
 ;; Heap
+;;
+;; Data element is a node (non-negative integer) and its key (number).
+;;
+;; Min-heap or max-heap depends on 'less' operator provide during
+;; heap construction.
+;;
+;; Supports 'delete' operation.
 
 
 (define (make-heap size less)
@@ -19,8 +26,10 @@
          (pos-node  (lambda (pos) (vector-ref pos-node_ pos)))
          (pos-node! (lambda (pos node) (vector-set! pos-node_ pos node)))
 
+         ;; pos->key mapping
          (pos-key (lambda (pos) (node-key (pos-node pos))))
 
+         ;; number of elemens in the heap
          (count 0)
 
          (log2 (lambda (n) (/ (log n) (log 2))))
@@ -30,8 +39,10 @@
              (if (zero? count) 0
                (inexact->exact (round (ceiling (log2 (1+ count))))))))
 
+         ;; last available position
          (last (lambda () (- count 1)))
 
+         ;; parent and children of given position
          (parent (lambda (pos) (quotient (- pos 1) 2)))
          (left   (lambda (pos) (+ 1 (* 2 pos))))
          (right  (lambda (pos) (+ 2 (* 2 pos))))
@@ -40,6 +51,7 @@
            (lambda (pos)
              (< pos count)))
 
+         ;; select position (p1 or p2) that corresponds to minimum key value
          (min-of
            (lambda (p1 p2)
              (let ((k1 (and (good-pos? p1) (pos-key p1)))
@@ -48,10 +60,13 @@
                      ((not k2) p1)
                      (else (if (less k1 k2) p1 p2))))))
 
+         ;; true if key from position p1 is less than key from position p2
+         ;; false otherwise
          (less-by-pos?
            (lambda (p1 p2)
              (less (pos-key p1) (pos-key p2))))
 
+         ;; exchange two elements addressed by their positions
          (swap
            (lambda (p1 p2)
              (let ((n1 (pos-node p1))
@@ -61,6 +76,7 @@
                (node-pos! n2 p1)
                (pos-node! p1 n2))))
 
+         ;; true if given position has a parent
          (has-parent
            (lambda (pos)
              (positive? pos)))
@@ -128,12 +144,14 @@
                (heapify-down 0)
                (list node key))))
 
+         ;; return key of given node
          (key
            (lambda (node)
              (if (or (negative? node) (>= node count))
                (error "out of range:" node))
              (node-key node)))
 
+         ;; delete node from heap
          (delete
            (lambda (node)
              (if (or (negative? node) (>= node count) (not (node-key node)))
@@ -153,51 +171,52 @@
                    (node-pos! node #f)
                    (heapify pos))))))
 
-         (modify
+         ;; replace key of given node
+         (update-key
            (lambda (node key)
-             (if (or (negative? node) (>= node count) (not (node-key node)))
-               (error "not in heap:" node))
-             (node-key! node key)
-             (heapify (node-pos node))))
+             (delete node)
+             (insert node key)))
 
+         ;; return (position key) tuple of given node
          (ref
            (lambda (pos)
              (if (not (good-pos? pos)) #f
                (list (pos-node pos) (pos-key pos)))))
+
+         ;; return key of given node if heap contains one
+         ;; return false otherwise
+         (contains?
+           (lambda (node)
+             (and (not (negative? node)) (< node count) (node-key node))))
 
          )
 
     (letrec ((this
                (lambda (op . args)
                  (case op
-                   ((size)  size)
-                   ((count) count)
-                   ((height) (height))
+                   ((size)  size)  ;; capacity of the heap
+                   ((count) count) ;; number of elements in the hreap
+                   ((height) (height)) ;; height of the heap
 
                    ((insert) (insert (car args) (cadr args))) ;; node key
-
                    ((extract-top) (extract-top))
-
                    ((key) (key (car args))) ;; node
-
                    ((delete) (delete (car args))) ;; node
-
-                   ((modify) (modify (car args) (cadr args))) ;; node key
-
+                   ((update-key) (update-key (car args) (cadr args))) ;; node key
                    ((ref) (ref (car args))) ;; pos
-
+                   ((contains?) (contains? (car args))) ;; node
                    ))))
-
       this)))
 
-(define (heap-size h)            (h 'size))
-(define (heap-count h)           (h 'count))
-(define (heap-height h)          (h 'height))
-(define (heap-insert h node key) (h 'insert node key))
-(define (heap-extract-top h)     (h 'extract-top))
-(define (heap-delete h node)     (h 'delete node))
-(define (heap-modify h node key) (h 'modify node key))
-(define (heap-key h node)        (h 'key node))
-(define (heap-ref h pos)         (h 'ref pos))
+(define (heap-size h)                (h 'size))
+(define (heap-count h)               (h 'count))
+(define (heap-height h)              (h 'height))
+(define (heap-insert h node key)     (h 'insert node key))
+(define (heap-extract-top h)         (h 'extract-top))
+(define (heap-delete h node)         (h 'delete node))
+(define (heap-update-key h node key) (h 'update-key node key))
+(define (heap-key h node)            (h 'key node))
+(define (heap-ref h pos)             (h 'ref pos))
+(define (heap-contains? h node)      (h 'contains? node))
 
 ;; end of file
