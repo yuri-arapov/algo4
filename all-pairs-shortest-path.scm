@@ -39,7 +39,7 @@
 
 
 (load "bellman-ford.scm")
-(load "dijkstra-shortest-path.scm")
+(load "dijkstra-shortest-path-by-heap.scm")
 
 
 (define (extend-graph g count extra-node)
@@ -91,27 +91,44 @@
                             (make-edge from to (reweight-cost (edge-cost e) from to))))
                         g))
 
-               (res '(0 0 0))
-               (update-res! (lambda (cost from to)
-                              (if (and cost (< cost (car res)))
-                                (begin
-                                  (format #t "FIXME: res: ~d ~d->~d\n" cost from to)
-                                  (set! res (list cost from to)))))))
+               ;; best result
+               (best-dist 0)
+               (best-from 0)
+               (best-to   0)
+
+               (update-res!
+                 (lambda (cost from to)
+                   (if (< cost best-dist)
+                     (begin
+                       (format #t "FIXME: update res: ~a->~a\n" 
+                               (list best-dist best-from best-to) (list cost from to))
+                       (set! best-dist cost)
+                       (set! best-from from)
+                       (set! best-to to)))))
+
+               ) ;; end of let
 
           (dotimes (s 1 n)
             (let (
                   ;; shortest path distantces from source node to all other nodes
+                  ;; by Dijkstra
                   (sp (dijkstra-shortest-path gr s)))
 
+              (format #t "FIXME: ~d/~d ~a\n" s n (list best-dist best-from best-to))
+
+              ;; restore cost (reweight backwards)
+              ;; and keep best result
               (dotimes (i 1 n)
                 (if (not (= i s))
-                  (vector-update! sp i (lambda (prev) (restore-cost prev s i)))))
+                  (let ((cost (vector-ref sp i)))
+                    (if cost
+                      (update-res! (restore-cost cost s i) s i)))))
 
-              (format #t "FIXME: sp=~a\n" sp)
+          (list best-dist best-from best-to))))))))
 
-              (dotimes (i 1 n)
-                (update-res! (vector-ref sp i) s i))))
+;; -19
+(define (g3)
+  (johnson-all-pairs-shortest-path (read-graph-edges "g3.txt")))
 
-          res)))))
 
 ;; end of file
