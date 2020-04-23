@@ -64,8 +64,8 @@
         (vector-update! x (edge-from e) (lambda (old) (cons (edge->rib e) old))))
       g)
     (dotimes (n (vector-length x))
-      (vector-update! x n (lambda (rib-list) (make-adj-node n rib-list))))
-    (vector->list x)))
+      (vector-set! x n (reverse (vector-ref x n))))
+    x))
 
 
 

@@ -32,6 +32,8 @@
          ;; number of elemens in the heap
          (count 0)
 
+         (node-in-range? (lambda (node) (< -1 node size)))
+
          (log2 (lambda (n) (/ (log n) (log 2))))
 
          (height
@@ -123,7 +125,7 @@
              (if (= count size)
                (error "heap is full"))
              (if (node-pos node)
-               (error "already in the heap:" node))
+               (error "already in heap:" node))
              (let ((pos count))
                (set! count (+ 1 count))
                (node-key! node key)
@@ -131,7 +133,7 @@
                (pos-node! pos node)
                (heapify-up pos))))
 
-         (extract-top
+         (extract
            (lambda ()
              (if (zero? count)
                (error "heap is empty"))
@@ -147,14 +149,16 @@
          ;; return key of given node
          (key
            (lambda (node)
-             (if (or (negative? node) (>= node count))
+             (if (not (node-in-range? node))
                (error "out of range:" node))
              (node-key node)))
 
          ;; delete node from heap
          (delete
            (lambda (node)
-             (if (or (negative? node) (>= node count) (not (node-key node)))
+             (if (not (node-in-range? node))
+               (error "out of range:" node))
+             (if (not (node-key node))
                (error "not in heap:" node))
              (let ((pos (node-pos node))
                    (lst (last)))
@@ -187,7 +191,7 @@
          ;; return false otherwise
          (contains?
            (lambda (node)
-             (and (not (negative? node)) (< node count) (node-key node))))
+             (and (node-in-range? node) (node-key node))))
 
          )
 
@@ -199,24 +203,28 @@
                    ((height) (height)) ;; height of the heap
 
                    ((insert) (insert (car args) (cadr args))) ;; node key
-                   ((extract-top) (extract-top))
+                   ((extract) (extract))
                    ((key) (key (car args))) ;; node
                    ((delete) (delete (car args))) ;; node
                    ((update-key) (update-key (car args) (cadr args))) ;; node key
                    ((ref) (ref (car args))) ;; pos
                    ((contains?) (contains? (car args))) ;; node
+
+                   ((dump-keys) node-key_) ;; -> vector of keys
                    ))))
       this)))
 
-(define (heap-size h)                (h 'size))
-(define (heap-count h)               (h 'count))
-(define (heap-height h)              (h 'height))
-(define (heap-insert h node key)     (h 'insert node key))
-(define (heap-extract-top h)         (h 'extract-top))
-(define (heap-delete h node)         (h 'delete node))
-(define (heap-update-key h node key) (h 'update-key node key))
-(define (heap-key h node)            (h 'key node))
-(define (heap-ref h pos)             (h 'ref pos))
-(define (heap-contains? h node)      (h 'contains? node))
+(define (heap-size h)                (h 'size))                 ;; -> integer
+(define (heap-count h)               (h 'count))                ;; -> integer
+(define (heap-height h)              (h 'height))               ;; -> integer
+(define (heap-insert h node key)     (h 'insert node key))      ;; -> undef
+(define (heap-extract h)             (h 'extract))              ;; -> (node key)
+(define (heap-extract-v h)           (apply values (h 'extract)));; -> (values node key)
+(define (heap-delete h node)         (h 'delete node))          ;; -> #t
+(define (heap-update-key h node key) (h 'update-key node key))  ;; -> undef
+(define (heap-key h node)            (h 'key node))             ;; -> integer
+(define (heap-ref h pos)             (h 'ref pos))              ;; -> (node key)
+(define (heap-ref-v h pos            (apply values (h 'ref pos)));; -> (values node key)
+(define (heap-contains? h node)      (h 'contains? node))       ;; -> boolean
 
 ;; end of file
