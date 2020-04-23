@@ -127,6 +127,7 @@
           (list best-dist best-from best-to))))))))
 
 ;; -19
+;; (g1 and g2 contain negative-cost cycles)
 (define (g3)
   (johnson-all-pairs-shortest-path (read-graph-edges "g3.txt")))
 
