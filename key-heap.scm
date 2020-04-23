@@ -224,7 +224,7 @@
 (define (heap-update-key h node key) (h 'update-key node key))  ;; -> undef
 (define (heap-key h node)            (h 'key node))             ;; -> integer
 (define (heap-ref h pos)             (h 'ref pos))              ;; -> (node key)
-(define (heap-ref-v h pos            (apply values (h 'ref pos)));; -> (values node key)
+(define (heap-ref-v h pos)           (apply values (h 'ref pos)));; -> (values node key)
 (define (heap-contains? h node)      (h 'contains? node))       ;; -> boolean
 
 ;; end of file
