@@ -131,5 +131,8 @@
 (define (g3)
   (johnson-all-pairs-shortest-path (read-graph-edges "g3.txt")))
 
+(define (large)
+  (johnson-all-pairs-shortest-path (read-graph-edges "large.txt")))
+
 
 ;; end of file
